@@ -15,40 +15,45 @@ type KMeans struct {
 	labels	  	[1000000]int
 	wait_group	sync.WaitGroup
 	mutex		sync.Mutex
+	data 		[][]float64
 }
 
-func NewKMeans(nClusters, maxIters int) *KMeans {
+func NewKMeans(nClusters, maxIters int, X [][]float64) *KMeans {
 	return &KMeans{
 		nClusters: nClusters,
 		maxIters:  maxIters,
+		data: X,
 	}
 }
 
-func (kMeans *KMeans) assignLabels(X [][]float64) {
+func (kMeans *KMeans) assignLabels() {
 
-	kMeans.wait_group.Add(len(X))
+	kMeans.wait_group.Add(len(kMeans.data))
 
-	for i := 0; i < len(X); i++ {
+	for i := 0; i < len(kMeans.data); i++ {
 		go func(i int, x [][]float64) {
 			defer kMeans.wait_group.Done()
 
 			minDist := math.MaxFloat64
 			var minIdx int
 
+			kMeans.mutex.Lock()
+			defer kMeans.mutex.Unlock()
+
 			for j, c := range kMeans.centroids {
-				dist := euclideanDistance(X[i], c)
+				dist := euclideanDistance(x[i], c)
 				if dist < minDist {
 					minDist = dist
 					minIdx = j
 				}
 			}
 			kMeans.labels[i] = minIdx
-		}(i, X)
+		}(i, kMeans.data)
 	}
 	kMeans.wait_group.Wait()
 }
 
-func (kMeans *KMeans) updateCentroids(X [][]float64) bool {
+func (kMeans *KMeans) updateCentroids() bool {
 	newCentroids := make([][]float64, kMeans.nClusters)
 	
 	for i := range newCentroids {
@@ -56,9 +61,9 @@ func (kMeans *KMeans) updateCentroids(X [][]float64) bool {
 	}
 	counts := make([]int, kMeans.nClusters)
 	
-	for i := range X {
-		for j:= range X[i] {
-			newCentroids[kMeans.labels[i]][j] += X[i][j]
+	for i := range kMeans.data {
+		for j:= range kMeans.data[i] {
+			newCentroids[kMeans.labels[i]][j] += kMeans.data[i][j]
 		}
 		counts[kMeans.labels[i]]++
 	}
@@ -102,28 +107,26 @@ func euclideanDistance(a, b []float64) float64 {
 	return sum
 }
 
-func (kMeans *KMeans) Fit(X [][]float64) {
+func (kMeans *KMeans) Fit() {
 	kMeans.centroids = make([][]float64, kMeans.nClusters)
 	
 	for i := range kMeans.centroids {
-		kMeans.centroids[i] = make([]float64, len(X[i]))
+		kMeans.centroids[i] = make([]float64, len(kMeans.data[i]))
 		for j := range kMeans.centroids[i] {
-			kMeans.centroids[i][j] = X[rand.Intn(len(X))][j]
+			kMeans.centroids[i][j] = kMeans.data[rand.Intn(len(kMeans.data))][j]
 		}
 	}
 
-	kMeans.assignLabels(X)
+	kMeans.assignLabels()
 
 	for iter := 0; iter < kMeans.maxIters; iter++ {
-		
-		fmt.Println("Iterations: ", iter)
-		if kMeans.updateCentroids(X) {
+		fmt.Println("Iteration: ", iter)
+		if kMeans.updateCentroids() {
 			fmt.Println("Ha llegado a convergencia.")
 			break
 		}
-		kMeans.assignLabels(X)
+		kMeans.assignLabels()
 
-		
 	}
 }
 
@@ -145,9 +148,9 @@ func main() {
 	rand.Seed(42)
 	start := time.Now()
 	X := createArrayValues(0.0, 1000.0)
-	kmeans := NewKMeans(10, 100)
-	kmeans.Fit(X)
-
+	kmeans := NewKMeans(10, 100, X)
+	kmeans.Fit()
+	
 	fmt.Println("Final Centroids:", kmeans.centroids)
 	fmt.Println("Execution Time: ", time.Since(start))
 }
