@@ -11,7 +11,7 @@ type KMeans struct {
 	nClusters int
 	maxIters  int
 	centroids [][]float64
-	labels	  []int
+	labels	  [1000000]int
 }
 
 func NewKMeans(nClusters, maxIters int) *KMeans {
@@ -33,37 +33,52 @@ func (kMeans *KMeans) assignLabels(X [][]float64) {
 				minIdx = j
 			}
 		}
-		kMeans.labels = append(kMeans.labels, minIdx)
+		kMeans.labels[i] = minIdx
 	}
 }
 
-func (kMeans *KMeans) updateCentroids(X [][]float64, labels []int) {
+func (kMeans *KMeans) updateCentroids(X [][]float64) bool {
 	newCentroids := make([][]float64, kMeans.nClusters)
+	
 	for i := range newCentroids {
-		newCentroids[i] = make([]float64, len(X[0]))
+		newCentroids[i] = make([]float64, 2)
 	}
 	counts := make([]int, kMeans.nClusters)
-	for i, x := range X {
-		label := labels[i]
-		for j, v := range x {
-			newCentroids[label][j] += v
+	
+	for i := range X {
+		for j:= range X[i] {
+			newCentroids[kMeans.labels[i]][j] += X[i][j]
 		}
-		counts[label]++
+		counts[kMeans.labels[i]]++
 	}
+
 	for i := range newCentroids {
 		for j := range newCentroids[i] {
 			newCentroids[i][j] /= float64(counts[i])
+
 		}
 	}
+
+	if kMeans.checkConvergence(newCentroids) {
+		return true
+	}
+
 	kMeans.centroids = newCentroids
+
+	return false
 }
 
-func (kMeans *KMeans) checkConvergence(X [][]float64, labels []int) bool {
+func (kMeans *KMeans) checkConvergence(a [][]float64) bool {
+	
 	for i, c := range kMeans.centroids {
+		var count int
 		for j, v := range c {
-			if math.Abs(v-X[labels[i]][j]) > 1e-6 {
-				return false
+			if math.Abs(v-a[i][j]) > 1e-2  {
+				count++
 			}
+		}
+		if count == len(kMeans.centroids[0]) {
+			return false
 		}
 	}
 	return true
@@ -72,7 +87,8 @@ func (kMeans *KMeans) checkConvergence(X [][]float64, labels []int) bool {
 func euclideanDistance(a, b []float64) float64 {
 	var sum float64
 	for i := range a {
-		sum += (a[i] - b[i]) * (a[i] - b[i])
+		temp := a[i] - b[i]
+		sum += temp * temp
 	}
 	return sum
 }
@@ -80,35 +96,40 @@ func euclideanDistance(a, b []float64) float64 {
 func (kMeans *KMeans) Fit(X [][]float64) {
 	rand.Seed(time.Now().UnixNano())
 	kMeans.centroids = make([][]float64, kMeans.nClusters)
+	
 	for i := range kMeans.centroids {
-		kMeans.centroids[i] = make([]float64, len(X[0]))
+		kMeans.centroids[i] = make([]float64, len(X[i]))
 		for j := range kMeans.centroids[i] {
 			kMeans.centroids[i][j] = X[rand.Intn(len(X))][j]
 		}
 	}
 
+	kMeans.assignLabels(X)
+
 	for iter := 0; iter < kMeans.maxIters; iter++ {
-		kMeans.assignLabels(X)
-
-		kMeans.updateCentroids(X, kMeans.labels)
-
-		if kMeans.checkConvergence(X, kMeans.labels) {
+		
+		fmt.Println("Iterations: ", iter)
+		if kMeans.updateCentroids(X) {
+			fmt.Println("Ha llegado a convergencia.")
 			break
 		}
+		kMeans.assignLabels(X)
+
+		
 	}
 }
 
 func createArrayValues(min, max float64) [][]float64 {
-	temporalArray := make([][]float64, 1000000)
+	X := make([][]float64, 1000000)
 	
-	for i := range temporalArray {
-		temporalArray[i] = make([]float64, 2)
-		for j := range temporalArray[i] {
-			temporalArray[i][j] = min + rand.Float64() * (max - min)
+	for i := range X {
+		X[i] = make([]float64, 2)
+		for j := range X[i] {
+			X[i][j] = min + rand.Float64() * (max - min)
 		}
 	}
 
-	return temporalArray
+	return X
 }
 
 func main() {
@@ -117,8 +138,6 @@ func main() {
 	kmeans := NewKMeans(10, 100)
 	kmeans.Fit(X)
 
-	//labels := kmeans.assignLabels(X)
-	//fmt.Println("Cluster Assignments:", labels)
 	fmt.Println("Final Centroids:", kmeans.centroids)
 	fmt.Println("Execution Time: ", time.Since(start))
 }
