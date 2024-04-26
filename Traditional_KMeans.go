@@ -107,7 +107,6 @@ func (kMeans *KMeans) Fit() {
 	kMeans.assignLabels()
 
 	for iter := 0; iter < kMeans.maxIters; iter++ {
-		fmt.Println("Iteration: ", iter)
 		if kMeans.updateCentroids() {
 			fmt.Println("Ha llegado a convergencia.")
 			break
@@ -130,13 +129,25 @@ func createArrayValues(min, max float64) [][]float64 {
 }
 
 func main() {
-	//rand.Seed(time.Now().UnixNano())
-	rand.Seed(42)
-	start := time.Now()
-	X := createArrayValues(0.0, 1000.0)
-	kmeans := NewKMeans(10, 100, X)
-	kmeans.Fit()
+	rand.Seed(time.Now().UnixNano())
+	var sum time.Duration
+	total_duration := make([]time.Duration, 1000)
 
-	fmt.Println("Final Centroids:", kmeans.centroids)
-	fmt.Println("Execution Time: ", time.Since(start))
+	for i := 0; i < 1000; i++ {
+		start := time.Now()
+		X := createArrayValues(0.0, 1000.0)
+		kmeans := NewKMeans(10, 100, X)
+		kmeans.Fit()
+
+		fmt.Println("Final Centroids:", kmeans.centroids)
+		fmt.Println("Execution Time: ", time.Since(start))
+		total_duration = append(total_duration, time.Since(start))
+	}
+
+	total_duration = total_duration[50:len(total_duration)-51]
+	for i := 0; i < len(total_duration); i++ {
+		sum += total_duration[i]
+	}
+	
+	fmt.Println("\nAverage time: ", float64(sum) / float64(len(total_duration)))
 }
