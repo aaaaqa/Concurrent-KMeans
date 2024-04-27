@@ -4,78 +4,95 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
-	"time"
 	"sync"
+	"time"
 )
 
 type KMeans struct {
-	nClusters 	int
-	maxIters  	int
-	centroids 	[][]float64
-	mutex      	sync.Mutex
-	wait_group	sync.WaitGroup
-	labels	  	[1000000]int
+	nClusters  int
+	maxIters   int
+	centroids  [][]float64
+	labels     [1000000]int
+	wait_group sync.WaitGroup
+	mutex      sync.Mutex
+	data       [][]float64
 }
 
-func NewKMeans(nClusters, maxIters int) *KMeans {
+func NewKMeans(nClusters, maxIters int, X [][]float64) *KMeans {
 	return &KMeans{
 		nClusters: nClusters,
 		maxIters:  maxIters,
+		data:      X,
 	}
 }
 
-func (kMeans *KMeans) assignLabels(X [][]float64) {
+func (kMeans *KMeans) assignLabels() {
 
-	kMeans.wait_group.Add(len(X))
+	kMeans.wait_group.Add(len(kMeans.data))
 
-	for i := 0; i < len(X); i++ {
-		defer kMeans.wait_group.Done()
-		go func(i int, x []float64) {
-			kMeans.mutex.Lock()
-			defer kMeans.mutex.Unlock()
+	for i := 0; i < len(kMeans.data); i++ {
+		go func(i int, x [][]float64) {
+			defer kMeans.wait_group.Done()
 
 			minDist := math.MaxFloat64
 			var minIdx int
+
+			kMeans.mutex.Lock()
+			defer kMeans.mutex.Unlock()
+
 			for j, c := range kMeans.centroids {
-				dist := euclideanDistance(x, c)
+				dist := euclideanDistance(x[i], c)
 				if dist < minDist {
 					minDist = dist
 					minIdx = j
 				}
 			}
 			kMeans.labels[i] = minIdx
-		}(i, X[i])
-		kMeans.wait_group.Wait()
+		}(i, kMeans.data)
 	}
+	kMeans.wait_group.Wait()
 }
 
-func (kMeans *KMeans) updateCentroids(X [][]float64, labels [1000000]int) {
+func (kMeans *KMeans) updateCentroids() bool {
 	newCentroids := make([][]float64, kMeans.nClusters)
+
 	for i := range newCentroids {
-		newCentroids[i] = make([]float64, len(X[0]))
+		newCentroids[i] = make([]float64, 2)
 	}
 	counts := make([]int, kMeans.nClusters)
-	for i, x := range X {
-		label := labels[i]
-		for j, v := range x {
-			newCentroids[label][j] += v
+
+	for i := range kMeans.data {
+		for j := range kMeans.data[i] {
+			newCentroids[kMeans.labels[i]][j] += kMeans.data[i][j]
 		}
-		counts[label]++
+		counts[kMeans.labels[i]]++
 	}
+
 	for i := range newCentroids {
 		for j := range newCentroids[i] {
 			newCentroids[i][j] /= float64(counts[i])
 		}
 	}
+
+	if kMeans.checkConvergence(newCentroids) {
+		return true
+	}
+
 	kMeans.centroids = newCentroids
+
+	return false
 }
 
-func (kMeans *KMeans) checkConvergence(X [][]float64, labels [1000000]int) bool {
+func (kMeans *KMeans) checkConvergence(a [][]float64) bool {
 	for i, c := range kMeans.centroids {
+		var count int
 		for j, v := range c {
-			if math.Abs(v-X[labels[i]][j]) > 1e-6 {
-				return false
+			if math.Abs(v-a[i][j]) > 1e-2 {
+				count++
 			}
+		}
+		if count == len(kMeans.centroids[0]) {
+			return false
 		}
 	}
 	return true
@@ -84,54 +101,67 @@ func (kMeans *KMeans) checkConvergence(X [][]float64, labels [1000000]int) bool 
 func euclideanDistance(a, b []float64) float64 {
 	var sum float64
 	for i := range a {
-		sum += (a[i] - b[i]) * (a[i] - b[i])
+		temp := a[i] - b[i]
+		sum += temp * temp
 	}
 	return sum
 }
 
-func (kMeans *KMeans) Fit(X [][]float64) {
-	rand.Seed(time.Now().UnixNano())
-
+func (kMeans *KMeans) Fit() {
 	kMeans.centroids = make([][]float64, kMeans.nClusters)
+
 	for i := range kMeans.centroids {
-		kMeans.centroids[i] = make([]float64, len(X[0]))
+		kMeans.centroids[i] = make([]float64, len(kMeans.data[i]))
 		for j := range kMeans.centroids[i] {
-			kMeans.centroids[i][j] = X[rand.Intn(len(X))][j]
+			kMeans.centroids[i][j] = kMeans.data[rand.Intn(len(kMeans.data))][j]
 		}
 	}
 
+	kMeans.assignLabels()
+
 	for iter := 0; iter < kMeans.maxIters; iter++ {
-		kMeans.assignLabels(X)
-
-		kMeans.updateCentroids(X, kMeans.labels)
-
-		if kMeans.checkConvergence(X, kMeans.labels) {
+		if kMeans.updateCentroids() {
+			fmt.Println("Ha llegado a convergencia.")
 			break
 		}
+		kMeans.assignLabels()
+
 	}
 }
 
 func createArrayValues(min, max float64) [][]float64 {
-	temporalArray := make([][]float64, 1000000)
-	
-	for i := range temporalArray {
-		temporalArray[i] = make([]float64, 2)
-		for j := range temporalArray[i] {
-			temporalArray[i][j] = min + rand.Float64() * (max - min)
+	X := make([][]float64, 1000000)
+
+	for i := range X {
+		X[i] = make([]float64, 2)
+		for j := range X[i] {
+			X[i][j] = min + rand.Float64()*(max-min)
 		}
 	}
 
-	return temporalArray
+	return X
 }
 
 func main() {
-	start := time.Now()
-	X := createArrayValues(0.0, 1000.0)
-	kmeans := NewKMeans(10, 100)
-	kmeans.Fit(X)
+	rand.Seed(time.Now().UnixNano())
+	var sum time.Duration
+	total_duration := make([]time.Duration, 1000)
 
-	//labels := kmeans.assignLabels(X)
-	//fmt.Println("Cluster Assignments:", labels)
-	fmt.Println("Final Centroids:", kmeans.centroids)
-	fmt.Println("Execution Time: ", time.Since(start))
+	for i := 0; i < 1000; i++ {
+		start := time.Now()
+		X := createArrayValues(0.0, 1000.0)
+		kmeans := NewKMeans(10, 100, X)
+		kmeans.Fit()
+
+		fmt.Println("Final Centroids:", kmeans.centroids)
+		fmt.Println("Execution Time: ", time.Since(start))
+		total_duration = append(total_duration, time.Since(start))
+	}
+
+	total_duration = total_duration[50 : len(total_duration)-51]
+	for i := 0; i < len(total_duration); i++ {
+		sum += total_duration[i]
+	}
+
+	fmt.Println("\nAverage time: ", float64(sum)/float64(len(total_duration)))
 }
