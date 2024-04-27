@@ -24,6 +24,9 @@ int count = nPoints
 // semaforo
 byte mutex = 1
 
+// valor de validacion
+byte cc = 0
+
 proctype UpdateLabel(int i) {
     //NCS
     int minDist = nPoints
@@ -31,6 +34,7 @@ proctype UpdateLabel(int i) {
 
     //CS
     wait(mutex)
+    cc++
     int j
     for (j : 0 .. nClusters - 1) {
         // Distancia Manhattan
@@ -67,6 +71,7 @@ proctype UpdateLabel(int i) {
     }
     labels[i] = minIdx
     count--
+    cc--
     signal(mutex)
 }
 
