@@ -104,7 +104,7 @@ func euclideanDistance(a, b []float64) float64 {
 		temp := a[i] - b[i]
 		sum += temp * temp
 	}
-	return sum
+	return math.Sqrt(sum)
 }
 
 func (kMeans *KMeans) Fit() {
