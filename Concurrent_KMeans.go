@@ -4,25 +4,25 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
-	"sync"
 	"time"
+	"sync"
 )
 
 type KMeans struct {
-	nClusters  int
-	maxIters   int
-	centroids  [][]float64
-	labels     [1000000]int
-	wait_group sync.WaitGroup
-	mutex      sync.Mutex
-	data       [][]float64
+	nClusters 	int
+	maxIters  	int
+	centroids 	[][]float64
+	labels	  	[1000000]int
+	wait_group	sync.WaitGroup
+	mutex		sync.Mutex
+	data 		[][]float64
 }
 
 func NewKMeans(nClusters, maxIters int, X [][]float64) *KMeans {
 	return &KMeans{
 		nClusters: nClusters,
 		maxIters:  maxIters,
-		data:      X,
+		data: X,
 	}
 }
 
@@ -55,14 +55,14 @@ func (kMeans *KMeans) assignLabels() {
 
 func (kMeans *KMeans) updateCentroids() bool {
 	newCentroids := make([][]float64, kMeans.nClusters)
-
+	
 	for i := range newCentroids {
 		newCentroids[i] = make([]float64, 2)
 	}
 	counts := make([]int, kMeans.nClusters)
-
+	
 	for i := range kMeans.data {
-		for j := range kMeans.data[i] {
+		for j:= range kMeans.data[i] {
 			newCentroids[kMeans.labels[i]][j] += kMeans.data[i][j]
 		}
 		counts[kMeans.labels[i]]++
@@ -87,7 +87,7 @@ func (kMeans *KMeans) checkConvergence(a [][]float64) bool {
 	for i, c := range kMeans.centroids {
 		var count int
 		for j, v := range c {
-			if math.Abs(v-a[i][j]) > 1e-2 {
+			if math.Abs(v-a[i][j]) > 1e-2  {
 				count++
 			}
 		}
@@ -104,12 +104,12 @@ func euclideanDistance(a, b []float64) float64 {
 		temp := a[i] - b[i]
 		sum += temp * temp
 	}
-	return sum
+	return math.Sqrt(sum)
 }
 
 func (kMeans *KMeans) Fit() {
 	kMeans.centroids = make([][]float64, kMeans.nClusters)
-
+	
 	for i := range kMeans.centroids {
 		kMeans.centroids[i] = make([]float64, len(kMeans.data[i]))
 		for j := range kMeans.centroids[i] {
@@ -131,11 +131,11 @@ func (kMeans *KMeans) Fit() {
 
 func createArrayValues(min, max float64) [][]float64 {
 	X := make([][]float64, 1000000)
-
+	
 	for i := range X {
 		X[i] = make([]float64, 2)
 		for j := range X[i] {
-			X[i][j] = min + rand.Float64()*(max-min)
+			X[i][j] = min + rand.Float64() * (max - min)
 		}
 	}
 
@@ -158,10 +158,10 @@ func main() {
 		total_duration = append(total_duration, time.Since(start))
 	}
 
-	total_duration = total_duration[50 : len(total_duration)-51]
+	total_duration = total_duration[50:len(total_duration)-51]
 	for i := 0; i < len(total_duration); i++ {
 		sum += total_duration[i]
 	}
-
-	fmt.Println("\nAverage time: ", float64(sum)/float64(len(total_duration)))
+	
+	fmt.Println("\nAverage time: ", float64(sum) / float64(len(total_duration)))
 }
