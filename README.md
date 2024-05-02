@@ -1,2 +1,4 @@
 # Concurrent-KMeans
-Repository used to store the source code of the TP concurrent and traditional kmeans algorithms
+Links al Video-exposición:
+* https://upcedupe-my.sharepoint.com/:v:/g/personal/u202010206_upc_edu_pe/EWt3u_B6eYRCtOqiXj0NV9YBSRAzp5I0ouLlZJZfMSCCxQ?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJPbmVEcml2ZUZvckJ1c2luZXNzIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXciLCJyZWZlcnJhbFZpZXciOiJNeUZpbGVzTGlua0NvcHkifX0&e=9C0z46
+* https://youtu.be/q7xLgi6GPZo
